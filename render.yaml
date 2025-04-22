@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: airbnb-dashboard
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      playwright install
+    startCommand: streamlit run airbnb_app.py --server.port 10000 --server.headless true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: 'true'
