@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: airbnb-dashboard
+    name: airbnb-dashboard2
     env: python
     buildCommand: |
       pip install -r requirements.txt
