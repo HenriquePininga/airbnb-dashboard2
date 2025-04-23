@@ -4,6 +4,7 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-    preDeployCommand: playwright install chromium
-    startCommand: streamlit run airbnb_app.py
+      playwright install chromium
+    startCommand: streamlit run airbnb_app.py --server.port 10000
+
 
