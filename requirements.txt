@@ -1,5 +1,6 @@
 streamlit
+selenium
+undetected-chromedriver
+webdriver-manager
 pandas
-plotly
-playwright
-xlsxwriter
+
