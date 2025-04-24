@@ -1,68 +1,72 @@
 import streamlit as st
 import pandas as pd
-from playwright.sync_api import sync_playwright
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+import undetected_chromedriver as uc
+import time
 
 st.set_page_config(page_title="Análise Inteligente de Anúncios do Airbnb", layout="wide")
 st.title("📊 Análise Inteligente de Anúncios do Airbnb")
 
 st.markdown("Cole os links dos anúncios (um por linha):")
-user_input = st.text_area("Links", height=150)
+links_input = st.text_area("Links", height=200)
+
+@st.cache_resource
+def get_driver():
+    options = uc.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    return uc.Chrome(options=options)
+
+def extract_data(link, driver):
+    try:
+        driver.get(link)
+        time.sleep(5)
+
+        title = driver.find_element(By.CSS_SELECTOR, 'h1[data-testid="title"]')
+        location = driver.find_element(By.CSS_SELECTOR, 'span[class*="hpipapi"]')
+
+        try:
+            rating = driver.find_element(By.CSS_SELECTOR, 'span[aria-label*="nota"]').text
+        except:
+            rating = "-"
+
+        try:
+            reviews = driver.find_element(By.CSS_SELECTOR, 'button[aria-label*="avali"] span').text
+        except:
+            reviews = "-"
+
+        try:
+            price = driver.find_element(By.CSS_SELECTOR, 'span[data-testid="book-it-default-text"]').text
+        except:
+            price = "-"
+
+        return {
+            "Link": link,
+            "Título": title.text,
+            "Localização": location.text,
+            "Nota": rating,
+            "Avaliações": reviews,
+            "Preço por diária": price
+        }
+
+    except Exception as e:
+        return {"Link": link, "Erro": str(e)}
 
 if st.button("Analisar"):
-    links = [link.strip() for link in user_input.split("\n") if link.strip()]
-    results = []
+    if links_input.strip():
+        links = [l.strip() for l in links_input.split("\n") if l.strip()]
+        driver = get_driver()
+        data = [extract_data(link, driver) for link in links]
+        driver.quit()
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-
-        for link in links:
-            data = {"Link": link}
-            try:
-                page = context.new_page()
-                page.goto(link, timeout=60000)
-
-                # Título
-                try:
-                    data["Título"] = page.locator("h1[data-testid='title']").inner_text(timeout=3000)
-                except:
-                    data["Título"] = "Não encontrado"
-
-                # Localização
-                try:
-                    data["Localização"] = page.locator("span[class*='hpipapi']").nth(0).inner_text(timeout=3000)
-                except:
-                    data["Localização"] = "Não encontrado"
-
-                # Nota
-                try:
-                    data["Nota"] = page.locator("span[class*='r1dxllyb']").nth(0).inner_text(timeout=3000)
-                except:
-                    data["Nota"] = "Não encontrada"
-
-                # Número de Avaliações
-                try:
-                    data["Avaliações"] = page.locator("span[class*='r1dxllyb']").nth(1).inner_text(timeout=3000)
-                except:
-                    data["Avaliações"] = "Não encontrada"
-
-                # Preço médio (considera que você esteja com datas selecionadas automaticamente)
-                try:
-                    data["Preço por diária"] = page.locator("span[class*='_tyxjp1']").first.inner_text(timeout=3000)
-                except:
-                    data["Preço por diária"] = "Não encontrado"
-
-            except Exception as e:
-                data["Erro"] = str(e)
-            finally:
-                results.append(data)
-                page.close()
-
-        context.close()
-        browser.close()
-
-    df = pd.DataFrame(results)
-    st.markdown("## 🗃️ Dados Extraídos")
-    st.dataframe(df)
-
+        df = pd.DataFrame(data)
+        st.markdown("### 🗂️ Dados Extraídos")
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.warning("Por favor, insira ao menos um link.")
 
